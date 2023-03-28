@@ -1,8 +1,13 @@
-import logo from "./logo.svg";
-import "./App.css";
+import React from "react";
+
+import Tensorflow from "./components/tensorflowsigner/Tensorflow";
 
 function App() {
-  return <div className="App">APP</div>;
+  return (
+    <div>
+      <Tensorflow />
+    </div>
+  );
 }
 
 export default App;
