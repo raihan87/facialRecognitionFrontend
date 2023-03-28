@@ -1,30 +1,62 @@
-import React, { useRef, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import Webcam from "react-webcam";
 import * as tf from "@tensorflow/tfjs";
+import * as tmImage from "@teachablemachine/image";
+
+const URL = "https://teachablemachine.withgoogle.com/models/i1bDARL_o/";
 
 function Tensorflow() {
-  const webcamRef = useRef(null);
+  const [model, setModel] = useState(null);
+  const [maxPredictions, setMaxPredictions] = useState(0);
 
-  async function classifyImage(imageData) {
-    const model = await tf.loadLayersModel(
-      "https://teachablemachine.withgoogle.com/models/i1bDARL_o/"
-    );
-    const img = tf.browser.fromPixels(imageData);
-    const resized = tf.image.resizeBilinear(img, [224, 224]);
-    const expanded = resized.expandDims(0);
-    const prediction = await model.predict(expanded).data();
-    return prediction;
+  async function init() {
+    const modelURL = URL + "model.json";
+    const metadataURL = URL + "metadata.json";
+    const tmModel = await tmImage.load(modelURL, metadataURL);
+    setModel(tmModel);
+    setMaxPredictions(tmModel.getTotalClasses());
   }
 
-  const capture = useCallback(() => {
-    const imageSrc = webcamRef.current.getScreenshot();
-    classifyImage(imageSrc).then((prediction) => console.log(prediction));
-  }, [webcamRef]);
+  async function predict(webcamRef, labelContainer) {
+    if (model && webcamRef && webcamRef.current && labelContainer) {
+      const prediction = await model.predict(webcamRef.current.video);
+      for (let i = 0; i < maxPredictions; i++) {
+        const classPrediction =
+          prediction[i].className + ": " + prediction[i].probability.toFixed(2);
+        labelContainer.childNodes[i].innerHTML = classPrediction;
+      }
+    }
+  }
+
+  useEffect(() => {
+    init();
+  }, []);
+
+  const webcamRef = React.useRef(null);
+
+  const loop = async () => {
+    await predict(webcamRef, document.getElementById("label-container"));
+    window.requestAnimationFrame(loop);
+  };
 
   return (
     <div>
-      <Webcam audio={false} ref={webcamRef} />
-      <button onClick={capture}>Capture</button>
+      <div>Teachable Machine Image Model</div>
+      <button type="button" onClick={loop}>
+        Start
+      </button>
+      <Webcam
+        audio={false}
+        ref={webcamRef}
+        width={200}
+        height={200}
+        screenshotFormat="image/jpeg"
+      />
+      <div id="label-container">
+        {Array.from(Array(maxPredictions).keys()).map((index) => (
+          <div key={index}></div>
+        ))}
+      </div>
     </div>
   );
 }
